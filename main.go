@@ -62,7 +62,7 @@ func CheckForChange(cwd string, callbackFn func(), paths []string) {
 		}
 	}
 
-	fmt.Println(filePaths)
+	fmt.Println("Watching: ", filePaths)
 	// then actually set up the watch
 	for _, path := range filePaths {
 		res, err := os.Stat(path)

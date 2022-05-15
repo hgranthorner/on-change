@@ -92,7 +92,7 @@ func TestAddChildren(t *testing.T) {
 		return
 	}
 
-	if len(children) != 2 {
+	if len(children) != 3 {
 		t.Errorf("Got children wrong! %s", children)
 		return
 	}
