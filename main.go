@@ -7,8 +7,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 )
+
+type Arguments struct {
+	extension string
+	cwd       string
+	command   string
+	paths     []string
+}
 
 func main() {
 	args := os.Args[1:]
@@ -16,63 +25,105 @@ func main() {
 
 	if len(args) == 0 ||
 		args[0] == "-h" ||
-		args[0] == "--help" {
+		args[0] == "--help" ||
+		args[0] == "--extension" ||
+		args[0] == "-ext" {
 		printHelp()
 		return
 	}
-
-	command := args[0]
-	files := args[1:]
-
-	channel := make(chan bool)
 
 	cwd, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
 
-	// go CheckForChange(func() { channel <- true }, []string{"go.mod", "main.go"})
-	go CheckForChange(cwd, func() { channel <- true }, files)
+	arguments := Arguments{
+		command: args[0],
+		cwd:     cwd,
+	}
+	argIndicesToSkip := []int{}
+
+	for i, arg := range args {
+		if (arg == "--extension" || arg == "-ext") &&
+			i < len(args) {
+			arguments.extension = args[i+1]
+			argIndicesToSkip = append(argIndicesToSkip, i, i+1)
+		}
+	}
+
+	for i, f := range args {
+		// skip first argument (the command) and any optional arguments
+		if i == 0 ||
+			contains(argIndicesToSkip, i) != -1 {
+			continue
+		}
+		arguments.paths = append(arguments.paths, f)
+	}
+
+	channel := make(chan string)
+
+	go CheckForChange(func(path string) { channel <- path }, arguments)
 
 	for {
 		select {
-		case <-channel:
-			fmt.Println("Change detected")
-			cmd := exec.Command(command)
-			stdout, err := cmd.Output()
-
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			// Print the output
-			fmt.Println(string(stdout))
+		case changedFile := <-channel:
+			fmt.Println("Change detected: ", changedFile)
+			RunCommand(arguments.command)
 		}
 	}
 }
 
+func contains[T comparable](arr []T, x T) int {
+	for i, val := range arr {
+		if val == x {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func RunCommand(command string) {
+	os := runtime.GOOS
+	var cmd *exec.Cmd
+	if os == "windows" {
+		cmd = exec.Command(command)
+	} else {
+		cmdWithArgs := strings.Split(command, " ")
+		cmd = exec.Command(cmdWithArgs[0], cmdWithArgs[1:]...)
+	}
+	stdout, err := cmd.Output()
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	// Print the output
+	fmt.Println(string(stdout))
+}
+
 // Runs continuously, calling callbackFn whenever any of the files in
 // passed in array changes.
-func CheckForChange(cwd string, callbackFn func(), paths []string) {
+func CheckForChange(callbackFn func(string), arguments Arguments) {
 	filePaths := []string{}
 
 	// first build list of all files to watch by searching through directories
-	for _, path := range paths {
+	for _, path := range arguments.paths {
 		file, err := os.Stat(path)
 		if err != nil {
 			panic(err)
 		}
 
 		if file.IsDir() {
-			children, err := addChildren(filepath.Join(cwd, file.Name()), file)
+			children, err := addChildren(filepath.Join(arguments.cwd, file.Name()), file, arguments.extension)
 			if err != nil {
 				panic(err)
 			}
 
 			filePaths = append(filePaths, children[:]...)
 		} else {
-			filePaths = append(filePaths, filepath.Join(cwd, path))
+			filePaths = append(filePaths, filepath.Join(arguments.cwd, path))
 		}
 	}
 
@@ -102,7 +153,7 @@ func AbsolutePathFromFileInfo(parentPath string, info fs.FileInfo) AbsolutePath 
 }
 
 // Returns a list of absolute paths to files
-func addChildren(parentPath string, parent fs.FileInfo) ([]string, error) {
+func addChildren(parentPath string, parent fs.FileInfo, extension string) ([]string, error) {
 	newFiles := []string{}
 	tempFiles, err := ioutil.ReadDir(parentPath)
 	filePaths := []AbsolutePath{}
@@ -131,7 +182,9 @@ func addChildren(parentPath string, parent fs.FileInfo) ([]string, error) {
 				filePaths = append(filePaths, AbsolutePathFromFileInfo(path.Value, f))
 			}
 		} else {
-			newFiles = append(newFiles, path.Value)
+			if extension == "" || strings.HasSuffix(path.Value, extension) {
+				newFiles = append(newFiles, path.Value)
+			}
 		}
 
 		n++
@@ -140,7 +193,7 @@ func addChildren(parentPath string, parent fs.FileInfo) ([]string, error) {
 	return newFiles, nil
 }
 
-func checkForFileChange(callbackFn func(), path string, timeChanged time.Time) {
+func checkForFileChange(callbackFn func(string), path string, timeChanged time.Time) {
 	for {
 		time.Sleep(20 * time.Millisecond)
 
@@ -151,7 +204,7 @@ func checkForFileChange(callbackFn func(), path string, timeChanged time.Time) {
 		}
 		newTimeChanged := res.ModTime()
 		if newTimeChanged.After(timeChanged) {
-			callbackFn()
+			callbackFn(path)
 		}
 
 		timeChanged = newTimeChanged

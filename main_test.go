@@ -11,15 +11,22 @@ func TestCheckForChangeInOneFile(t *testing.T) {
 	file, err := os.CreateTemp("", "newfile")
 
 	if err != nil {
-		t.Errorf("Failed to create temporary directory!")
+		t.Errorf("Failed to create temporary file!")
 		return
 	}
 	defer file.Close()
 
 	paths := []string{file.Name()}
 	checked := make(chan bool)
+
+	arguments := Arguments {
+		extension: "",
+		cwd: "",
+		paths: paths,
+		command: "",
+	}
 	
-	go CheckForChange("", func() { checked <- true }, paths)
+	go CheckForChange(func(_ string) { checked <- true }, arguments)
 
 	time.Sleep(time.Millisecond * 10)
 
@@ -45,17 +52,23 @@ func TestCheckForChangeInSeveralFiles(t *testing.T) {
 	file3, err := os.CreateTemp("", "newfile")
 
 	if err != nil {
-		t.Errorf("Failed to create temporary directory!")
+		t.Errorf("Failed to create temporary file!")
 		return
 	}
+
 	defer file1.Close()
 	defer file2.Close()
 	defer file3.Close()
 
-	paths := []string{file1.Name(), file2.Name(), file3.Name()}
+	arguments := Arguments {
+		extension: "",
+		cwd: "",
+		paths: []string{file1.Name(), file2.Name(), file3.Name()},
+		command: "",
+	}
 	checked := make(chan bool)
 	// paths are already absolute
-	go CheckForChange("", func() { checked <- true }, paths)
+	go CheckForChange(func(_ string) { checked <- true }, arguments)
 
 	time.Sleep(time.Millisecond * 10)
 
@@ -86,13 +99,36 @@ func TestAddChildren(t *testing.T) {
 		t.Errorf("Failed to get cwd!")
 		return
 	}
-	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir)
+	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, "")
 	if err != nil {
 		t.Errorf("Failed to get children!")
 		return
 	}
 
 	if len(children) != 3 {
+		t.Errorf("Got children wrong! %s", children)
+		return
+	}
+}
+
+func TestAddChildrenWithExtensionFilter(t *testing.T) {
+	dir, err := os.Stat("test_folder")
+	if err != nil {
+		t.Errorf("Failed to stat dir!")
+		return
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Errorf("Failed to get cwd!")
+		return
+	}
+	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, ".txt")
+	if err != nil {
+		t.Errorf("Failed to get children!")
+		return
+	}
+
+	if len(children) != 1 {
 		t.Errorf("Got children wrong! %s", children)
 		return
 	}
