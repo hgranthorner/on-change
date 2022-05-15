@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -17,7 +18,8 @@ func TestCheckForChangeInOneFile(t *testing.T) {
 
 	paths := []string{file.Name()}
 	checked := make(chan bool)
-	go checkForChange(func() { checked <- true }, paths)
+	
+	go CheckForChange("", func() { checked <- true }, paths)
 
 	time.Sleep(time.Millisecond * 10)
 
@@ -25,7 +27,7 @@ func TestCheckForChangeInOneFile(t *testing.T) {
 	err = os.Chtimes(file.Name(), currentTime, currentTime)
 	if err != nil {
 		t.Errorf("Failed to change times!")
-		return 
+		return
 	}
 
 	select {
@@ -52,7 +54,8 @@ func TestCheckForChangeInSeveralFiles(t *testing.T) {
 
 	paths := []string{file1.Name(), file2.Name(), file3.Name()}
 	checked := make(chan bool)
-	go checkForChange(func() { checked <- true }, paths)
+	// paths are already absolute
+	go CheckForChange("", func() { checked <- true }, paths)
 
 	time.Sleep(time.Millisecond * 10)
 
@@ -60,7 +63,7 @@ func TestCheckForChangeInSeveralFiles(t *testing.T) {
 	err = os.Chtimes(file3.Name(), currentTime, currentTime)
 	if err != nil {
 		t.Errorf("Failed to change times!")
-		return 
+		return
 	}
 
 	select {
@@ -68,6 +71,29 @@ func TestCheckForChangeInSeveralFiles(t *testing.T) {
 		return
 	case <-time.After(20 * time.Millisecond):
 		t.Errorf("Failed to see file change")
+		return
+	}
+}
+
+func TestAddChildren(t *testing.T) {
+	dir, err := os.Stat("test_folder")
+	if err != nil {
+		t.Errorf("Failed to stat dir!")
+		return
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Errorf("Failed to get cwd!")
+		return
+	}
+	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir)
+	if err != nil {
+		t.Errorf("Failed to get children!")
+		return
+	}
+
+	if len(children) != 2 {
+		t.Errorf("Got children wrong! %s", children)
 		return
 	}
 }
