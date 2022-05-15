@@ -282,4 +282,12 @@ func printHelp() {
 	fmt.Println("")
 	fmt.Println("run ls whenever a file in the current directory changes")
 	fmt.Println("`on-change ls .`")
+	fmt.Println("")
+	fmt.Println("run ls whenever a javascript file changes")
+	fmt.Println("`on-change ls src/ -ext .js`")
+	fmt.Println("")
+	fmt.Println("run ls whenever a javascript or typescript file changes")
+	fmt.Println("`on-change ls src/ -ext .js,.ts`")
+	fmt.Println("run ls whenever a javascript or typescript file changes, except for foo.js")
+	fmt.Println("`on-change ls src/ -ext .js,.ts -exc foo.js`")
 }
