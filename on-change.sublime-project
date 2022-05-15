@@ -1,8 +1,13 @@
 {
-	"folders":
-	[
+	"folders": [
 		{
 			"path": "."
+		}
+	],
+	"build_systems": [
+		{
+			"name": "Go Test",
+			"cmd": ["go", "test"]
 		}
 	]
 }
