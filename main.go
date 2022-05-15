@@ -13,10 +13,11 @@ import (
 )
 
 type Arguments struct {
-	extension string
+	extensions []string
 	cwd       string
 	command   string
 	paths     []string
+	exclude   []string
 }
 
 func main() {
@@ -46,7 +47,13 @@ func main() {
 	for i, arg := range args {
 		if (arg == "--extension" || arg == "-ext") &&
 			i < len(args) {
-			arguments.extension = args[i+1]
+			extensions := strings.Split(args[i+1], ",")
+			arguments.extensions = append(arguments.extensions, extensions...)
+			argIndicesToSkip = append(argIndicesToSkip, i, i+1)
+		}
+		if (arg == "--exclude" || arg == "-exc") &&
+			i < len(args) {
+			arguments.exclude = append(arguments.exclude, args[i+1])
 			argIndicesToSkip = append(argIndicesToSkip, i, i+1)
 		}
 	}
@@ -116,7 +123,7 @@ func CheckForChange(callbackFn func(string), arguments Arguments) {
 		}
 
 		if file.IsDir() {
-			children, err := addChildren(filepath.Join(arguments.cwd, file.Name()), file, arguments.extension)
+			children, err := addChildren(filepath.Join(arguments.cwd, file.Name()), file, arguments.extensions)
 			if err != nil {
 				panic(err)
 			}
@@ -153,7 +160,7 @@ func AbsolutePathFromFileInfo(parentPath string, info fs.FileInfo) AbsolutePath 
 }
 
 // Returns a list of absolute paths to files
-func addChildren(parentPath string, parent fs.FileInfo, extension string) ([]string, error) {
+func addChildren(parentPath string, parent fs.FileInfo, extensions []string) ([]string, error) {
 	newFiles := []string{}
 	tempFiles, err := ioutil.ReadDir(parentPath)
 	filePaths := []AbsolutePath{}
@@ -182,8 +189,15 @@ func addChildren(parentPath string, parent fs.FileInfo, extension string) ([]str
 				filePaths = append(filePaths, AbsolutePathFromFileInfo(path.Value, f))
 			}
 		} else {
-			if extension == "" || strings.HasSuffix(path.Value, extension) {
+			if len(extensions) == 0 {
 				newFiles = append(newFiles, path.Value)
+			} else {
+				for _, extension := range extensions {
+					if strings.HasSuffix(path.Value, extension) {
+						newFiles = append(newFiles, path.Value)
+						break
+					}
+				}
 			}
 		}
 

@@ -20,7 +20,6 @@ func TestCheckForChangeInOneFile(t *testing.T) {
 	checked := make(chan bool)
 
 	arguments := Arguments {
-		extension: "",
 		cwd: "",
 		paths: paths,
 		command: "",
@@ -61,7 +60,6 @@ func TestCheckForChangeInSeveralFiles(t *testing.T) {
 	defer file3.Close()
 
 	arguments := Arguments {
-		extension: "",
 		cwd: "",
 		paths: []string{file1.Name(), file2.Name(), file3.Name()},
 		command: "",
@@ -99,7 +97,7 @@ func TestAddChildren(t *testing.T) {
 		t.Errorf("Failed to get cwd!")
 		return
 	}
-	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, "")
+	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, []string{})
 	if err != nil {
 		t.Errorf("Failed to get children!")
 		return
@@ -122,13 +120,13 @@ func TestAddChildrenWithExtensionFilter(t *testing.T) {
 		t.Errorf("Failed to get cwd!")
 		return
 	}
-	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, ".txt")
+	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, []string{".txt", ".csv"})
 	if err != nil {
 		t.Errorf("Failed to get children!")
 		return
 	}
 
-	if len(children) != 1 {
+	if len(children) != 2 {
 		t.Errorf("Got children wrong! %s", children)
 		return
 	}
