@@ -14,6 +14,7 @@ func main() {
 		args[0] == "-h" ||
 		args[0] == "--help" {
 		printHelp()
+		return
 	}
 
 	channel := make(chan bool)
