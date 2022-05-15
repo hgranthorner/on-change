@@ -31,7 +31,7 @@ func TestCheckForChangeInOneFile(t *testing.T) {
 	select {
 	case <-checked:
 		return
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(20 * time.Millisecond):
 		t.Errorf("Failed to see file change")
 		return
 	}
@@ -66,7 +66,7 @@ func TestCheckForChangeInSeveralFiles(t *testing.T) {
 	select {
 	case <-checked:
 		return
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(20 * time.Millisecond):
 		t.Errorf("Failed to see file change")
 		return
 	}
