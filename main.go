@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 )
@@ -20,6 +21,9 @@ func main() {
 		return
 	}
 
+	command := args[0]
+	files := args[1:]
+
 	channel := make(chan bool)
 
 	cwd, err := os.Getwd()
@@ -28,12 +32,22 @@ func main() {
 	}
 
 	// go CheckForChange(func() { channel <- true }, []string{"go.mod", "main.go"})
-	go CheckForChange(cwd, func() { channel <- true }, []string{"./test_folder"})
+	go CheckForChange(cwd, func() { channel <- true }, files)
 
 	for {
 		select {
 		case <-channel:
-			fmt.Println("change")
+			fmt.Println("Change detected")
+			cmd := exec.Command(command)
+			stdout, err := cmd.Output()
+
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
+			// Print the output
+			fmt.Println(string(stdout))
 		}
 	}
 }
