@@ -230,7 +230,7 @@ func printHelp() {
 	fmt.Println("")
 	fmt.Println("Usage:")
 	fmt.Println("")
-	fmt.Println("on-change <cmd> <dir> (-i|--include globs)(-e|--exclude globs")
+	fmt.Println("on-change <cmd> <dir> (-ext|--extension <comma separated extensions>) (-exc|--exclude <comma separated file names to exclude>")
 	fmt.Println("")
 	fmt.Println("where <cmd> is some command line program ('ls'), <dir> is the directory to watch ('.', './src') and globs are a comma separated list of regexes that represent file paths.")
 	fmt.Println("")
