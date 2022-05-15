@@ -7,13 +7,15 @@ import (
 	"time"
 )
 
+func check(t *testing.T, err error, msg string) {
+	if err != nil {
+		t.Errorf(msg)
+	}
+}
+
 func TestCheckForChangeInOneFile(t *testing.T) {
 	file, err := os.CreateTemp("", "newfile")
-
-	if err != nil {
-		t.Errorf("Failed to create temporary file!")
-		return
-	}
+	check(t, err, "Failed to create temporary file!")
 	defer file.Close()
 
 	paths := []string{file.Name()}
@@ -31,10 +33,7 @@ func TestCheckForChangeInOneFile(t *testing.T) {
 
 	currentTime := time.Now().Local()
 	err = os.Chtimes(file.Name(), currentTime, currentTime)
-	if err != nil {
-		t.Errorf("Failed to change times!")
-		return
-	}
+	check(t, err, "Failed to change times!")
 
 	select {
 	case <-checked:
@@ -50,10 +49,7 @@ func TestCheckForChangeInSeveralFiles(t *testing.T) {
 	file2, err := os.CreateTemp("", "newfile")
 	file3, err := os.CreateTemp("", "newfile")
 
-	if err != nil {
-		t.Errorf("Failed to create temporary file!")
-		return
-	}
+	check(t, err, "Failed to create temporary file!")
 
 	defer file1.Close()
 	defer file2.Close()
@@ -72,10 +68,7 @@ func TestCheckForChangeInSeveralFiles(t *testing.T) {
 
 	currentTime := time.Now().Local()
 	err = os.Chtimes(file3.Name(), currentTime, currentTime)
-	if err != nil {
-		t.Errorf("Failed to change times!")
-		return
-	}
+	check(t, err, "Failed to change times!")
 
 	select {
 	case <-checked:
@@ -88,46 +81,30 @@ func TestCheckForChangeInSeveralFiles(t *testing.T) {
 
 func TestAddChildren(t *testing.T) {
 	dir, err := os.Stat("test_folder")
-	if err != nil {
-		t.Errorf("Failed to stat dir!")
-		return
-	}
+	check(t, err, "Failed to stat dir!")
+
 	cwd, err := os.Getwd()
-	if err != nil {
-		t.Errorf("Failed to get cwd!")
-		return
-	}
+	check(t, err, "Failed to get cwd!")
+
 	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, []string{})
-	if err != nil {
-		t.Errorf("Failed to get children!")
-		return
-	}
+	check(t, err, "Failed to get children!")
 
 	if len(children) != 3 {
 		t.Errorf("Got children wrong! %s", children)
-		return
 	}
 }
 
 func TestAddChildrenWithExtensionFilter(t *testing.T) {
 	dir, err := os.Stat("test_folder")
-	if err != nil {
-		t.Errorf("Failed to stat dir!")
-		return
-	}
+	check(t, err, "Failed to stat dir!")
+
 	cwd, err := os.Getwd()
-	if err != nil {
-		t.Errorf("Failed to get cwd!")
-		return
-	}
+	check(t, err, "Failed to get cwd!")
+
 	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, []string{".txt", ".csv"})
-	if err != nil {
-		t.Errorf("Failed to get children!")
-		return
-	}
+	check(t, err, "Failed to get children!")
 
 	if len(children) != 2 {
 		t.Errorf("Got children wrong! %s", children)
-		return
 	}
 }
