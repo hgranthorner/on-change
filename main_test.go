@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -20,6 +21,7 @@ func TestCheckForChangeInOneFile(t *testing.T) {
 
 	paths := []string{file.Name()}
 	checked := make(chan bool)
+	quit := make(chan bool)
 
 	arguments := Arguments {
 		cwd: "",
@@ -27,7 +29,7 @@ func TestCheckForChangeInOneFile(t *testing.T) {
 		command: "",
 	}
 	
-	go CheckForChange(func(_ string) { checked <- true }, arguments)
+	go CheckForChange(func(_ string) { checked <- true }, quit, arguments)
 
 	time.Sleep(time.Millisecond * 10)
 
@@ -40,7 +42,8 @@ func TestCheckForChangeInOneFile(t *testing.T) {
 		return
 	case <-time.After(20 * time.Millisecond):
 		t.Errorf("Failed to see file change")
-		return
+	case <-quit:
+		t.Errorf("Failed to read any files")
 	}
 }
 
@@ -61,8 +64,9 @@ func TestCheckForChangeInSeveralFiles(t *testing.T) {
 		command: "",
 	}
 	checked := make(chan bool)
+	quit := make(chan bool)
 	// paths are already absolute
-	go CheckForChange(func(_ string) { checked <- true }, arguments)
+	go CheckForChange(func(_ string) { checked <- true }, quit, arguments)
 
 	time.Sleep(time.Millisecond * 10)
 
@@ -75,7 +79,8 @@ func TestCheckForChangeInSeveralFiles(t *testing.T) {
 		return
 	case <-time.After(20 * time.Millisecond):
 		t.Errorf("Failed to see file change")
-		return
+	case <-quit:
+		t.Errorf("Failed to read any files")
 	}
 }
 
@@ -86,7 +91,7 @@ func TestAddChildren(t *testing.T) {
 	cwd, err := os.Getwd()
 	check(t, err, "Failed to get cwd!")
 
-	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, []string{})
+	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, []string{}, []*regexp.Regexp{})
 	check(t, err, "Failed to get children!")
 
 	if len(children) != 3 {
@@ -101,7 +106,7 @@ func TestAddChildrenWithExtensionFilter(t *testing.T) {
 	cwd, err := os.Getwd()
 	check(t, err, "Failed to get cwd!")
 
-	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, []string{".txt", ".csv"})
+	children, err := addChildren(filepath.Join(cwd, dir.Name()), dir, []string{".txt", ".csv"}, []*regexp.Regexp{})
 	check(t, err, "Failed to get children!")
 
 	if len(children) != 2 {

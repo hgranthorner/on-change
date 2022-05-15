@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -14,10 +15,10 @@ import (
 
 type Arguments struct {
 	extensions []string
-	cwd       string
-	command   string
-	paths     []string
-	exclude   []string
+	cwd        string
+	command    string
+	paths      []string
+	exclusions []*regexp.Regexp
 }
 
 func main() {
@@ -53,7 +54,15 @@ func main() {
 		}
 		if (arg == "--exclude" || arg == "-exc") &&
 			i < len(args) {
-			arguments.exclude = append(arguments.exclude, args[i+1])
+			exclusions := strings.Split(args[i+1], ",")
+			for _, exc := range exclusions {
+				regex, err := regexp.Compile(exc)
+				if err != nil {
+					fmt.Println("Failed to compile", exc, "as regular expression")
+					return
+				}
+				arguments.exclusions = append(arguments.exclusions, regex)
+			}
 			argIndicesToSkip = append(argIndicesToSkip, i, i+1)
 		}
 	}
@@ -68,14 +77,17 @@ func main() {
 	}
 
 	channel := make(chan string)
+	quit := make(chan bool)
 
-	go CheckForChange(func(path string) { channel <- path }, arguments)
+	go CheckForChange(func(path string) { channel <- path }, quit, arguments)
 
 	for {
 		select {
 		case changedFile := <-channel:
 			fmt.Println("Change detected: ", changedFile)
 			RunCommand(arguments.command)
+		case <-quit:
+			return
 		}
 	}
 }
@@ -112,7 +124,7 @@ func RunCommand(command string) {
 
 // Runs continuously, calling callbackFn whenever any of the files in
 // passed in array changes.
-func CheckForChange(callbackFn func(string), arguments Arguments) {
+func CheckForChange(callbackFn func(string), quit chan<- bool, arguments Arguments) {
 	filePaths := []string{}
 
 	// first build list of all files to watch by searching through directories
@@ -123,18 +135,34 @@ func CheckForChange(callbackFn func(string), arguments Arguments) {
 		}
 
 		if file.IsDir() {
-			children, err := addChildren(filepath.Join(arguments.cwd, file.Name()), file, arguments.extensions)
+			children, err := addChildren(
+				filepath.Join(arguments.cwd, file.Name()),
+				file,
+				arguments.extensions,
+				arguments.exclusions,
+			)
 			if err != nil {
 				panic(err)
 			}
 
 			filePaths = append(filePaths, children[:]...)
-		} else {
-			filePaths = append(filePaths, filepath.Join(arguments.cwd, path))
+			continue
 		}
+
+		filePaths = maybeAppend(
+			filePaths,
+			filepath.Join(arguments.cwd, path),
+			arguments.extensions,
+			arguments.exclusions,
+		)
 	}
 
 	fmt.Println("Watching: ", filePaths)
+	if len(filePaths) == 0 {
+		fmt.Println("Passed parameters match no files!")
+		quit <- true
+
+	}
 	// then actually set up the watch
 	for _, path := range filePaths {
 		res, err := os.Stat(path)
@@ -160,7 +188,7 @@ func AbsolutePathFromFileInfo(parentPath string, info fs.FileInfo) AbsolutePath 
 }
 
 // Returns a list of absolute paths to files
-func addChildren(parentPath string, parent fs.FileInfo, extensions []string) ([]string, error) {
+func addChildren(parentPath string, parent fs.FileInfo, extensions []string, exclusions []*regexp.Regexp) ([]string, error) {
 	newFiles := []string{}
 	tempFiles, err := ioutil.ReadDir(parentPath)
 	filePaths := []AbsolutePath{}
@@ -189,16 +217,7 @@ func addChildren(parentPath string, parent fs.FileInfo, extensions []string) ([]
 				filePaths = append(filePaths, AbsolutePathFromFileInfo(path.Value, f))
 			}
 		} else {
-			if len(extensions) == 0 {
-				newFiles = append(newFiles, path.Value)
-			} else {
-				for _, extension := range extensions {
-					if strings.HasSuffix(path.Value, extension) {
-						newFiles = append(newFiles, path.Value)
-						break
-					}
-				}
-			}
+			newFiles = maybeAppend(newFiles, path.Value, extensions, exclusions)
 		}
 
 		n++
@@ -223,6 +242,31 @@ func checkForFileChange(callbackFn func(string), path string, timeChanged time.T
 
 		timeChanged = newTimeChanged
 	}
+}
+
+func maybeAppend(arr []string, s string, extensions []string, exclusions []*regexp.Regexp) []string {
+	hasExtension := len(extensions) == 0
+	anyExclusions := len(exclusions) != 0
+
+	for _, extension := range extensions {
+		if strings.HasSuffix(s, extension) {
+			hasExtension = true
+			break
+		}
+	}
+
+	bytes := []byte(s)
+	for _, exclusion := range exclusions {
+		if exclusion.Find(bytes) != nil {
+			anyExclusions = true
+		}
+	}
+
+	if !anyExclusions && hasExtension {
+		arr = append(arr, s)
+	}
+
+	return arr
 }
 
 func printHelp() {
