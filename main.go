@@ -246,7 +246,7 @@ func checkForFileChange(callbackFn func(string), path string, timeChanged time.T
 
 func maybeAppend(arr []string, s string, extensions []string, exclusions []*regexp.Regexp) []string {
 	hasExtension := len(extensions) == 0
-	anyExclusions := len(exclusions) != 0
+	anyExclusions := false
 
 	for _, extension := range extensions {
 		if strings.HasSuffix(s, extension) {
@@ -255,10 +255,10 @@ func maybeAppend(arr []string, s string, extensions []string, exclusions []*rege
 		}
 	}
 
-	bytes := []byte(s)
 	for _, exclusion := range exclusions {
-		if exclusion.Find(bytes) != nil {
+		if exclusion.MatchString(s) {
 			anyExclusions = true
+			break
 		}
 	}
 

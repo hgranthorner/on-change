@@ -113,3 +113,46 @@ func TestAddChildrenWithExtensionFilter(t *testing.T) {
 		t.Errorf("Got children wrong! %s", children)
 	}
 }
+
+func TestMaybeAppendWithNoExtensionsOrExceptions(t *testing.T) {
+	arr := []string{"egg/salad.txt"}
+	// regex, err := regexp.Compile("csv")
+	// check(t, err, "Failed to compile regex")
+	// exclusions := []*regexp.Regexp{regex}
+	arr = maybeAppend(arr, "egg/sandwich.csv", []string{}, []*regexp.Regexp{})
+	if len(arr) != 2 {
+		t.Errorf("Failed to append to array!")
+	}
+}
+
+func TestMaybeAppendWithExtensionsAndNoExceptions(t *testing.T) {
+	arr := []string{"egg/salad.txt"}
+
+	arr = maybeAppend(arr, "egg/sandwich.csv", []string{".xlsx"}, []*regexp.Regexp{})
+	if len(arr) != 1 {
+		t.Errorf("Appended to array when it shouldn't have.")
+	}
+
+	arr = maybeAppend(arr, "egg/sandwich.csv", []string{".csv"}, []*regexp.Regexp{})
+	if len(arr) != 2 {
+		t.Errorf("Failed to append to array!")
+	}
+}
+
+func TestMaybeAppendWithNoExtensionsAndSomeExceptions(t *testing.T) {
+	arr := []string{"egg/salad.txt"}
+
+	regex, err := regexp.Compile("egg")
+	check(t, err, "Failed to compile regex")
+	exclusions := []*regexp.Regexp{regex}
+
+	arr = maybeAppend(arr, "egg/sandwich.csv", []string{}, exclusions)
+	if len(arr) != 1 {
+		t.Errorf("Appended to array when it shouldn't have.")
+	}
+
+	arr = maybeAppend(arr, "ham/sandwich.csv", []string{}, exclusions)
+	if len(arr) != 2 {
+		t.Errorf("Didn't append to array when it should have.")
+	}
+}
