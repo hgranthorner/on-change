@@ -19,6 +19,7 @@ type Arguments struct {
 	command    string
 	paths      []string
 	exclusions []*regexp.Regexp
+	verbose bool
 }
 
 func main() {
@@ -65,6 +66,9 @@ func main() {
 			}
 			argIndicesToSkip = append(argIndicesToSkip, i, i+1)
 		}
+		if arg == "-v" || arg == "--verbose" {
+			arguments.verbose = true
+		}
 	}
 
 	for i, f := range args {
@@ -84,7 +88,9 @@ func main() {
 	for {
 		select {
 		case changedFile := <-channel:
-			fmt.Println("Change detected: ", changedFile)
+			parts := strings.Split(changedFile, string(filepath.Separator))
+			fileName := parts[len(parts) - 1]
+			fmt.Println("Change detected: ", fileName)
 			RunCommand(arguments.command)
 		case <-quit:
 			return
@@ -157,7 +163,10 @@ func CheckForChange(callbackFn func(string), quit chan<- bool, arguments Argumen
 		)
 	}
 
-	fmt.Println("Watching: ", filePaths)
+	if arguments.verbose {
+		fmt.Println("Watching: ", filePaths)
+	}
+
 	if len(filePaths) == 0 {
 		fmt.Println("Passed parameters match no files!")
 		quit <- true
