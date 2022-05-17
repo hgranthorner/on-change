@@ -121,7 +121,6 @@ func RunCommand(command string) {
 
 	if err != nil {
 		fmt.Println(err.Error())
-		return
 	}
 
 	// Print the output
